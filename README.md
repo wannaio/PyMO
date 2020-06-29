@@ -1,5 +1,5 @@
 # PyMO
-A library for using motion capture data for machine learning
+A library for using motion capture data for machine learning.
 
 **This library is currently highly experimental and everything is subject to change :)**
 
@@ -31,12 +31,12 @@ A library for using motion capture data for machine learning
     * Foot/ground contact detector
 
 ### Demos
-See the demo notebooks processing and visualization examples:
+See the demo notebooks for processing and visualization examples:
 
-* Position.ipynb: bvh to joint positions
-* PlayMocap.ipynb: Visualize in HTML
 * bvh2features: downsampling, root-centric transformation, joint-selection and data-augmentation (mirroring)
 * features2bvh: converting features back to bvh format
+* Position: bvh to joint positions
+* PlayMocap: Visualize in HTML
 
 
 ### Read BVH Files
