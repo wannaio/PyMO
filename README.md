@@ -30,6 +30,13 @@ A library for using motion capture data for machine learning
 * Annotations
     * Foot/ground contact detector
 
+### Demos
+See the demo notebooks processing and visualization examples:
+
+* Position.ipynb: bvh to joint positions
+* PlayMocap.ipynb: Visualize in HTML
+* bvh2features: downsampling, root-centric transformation, joint-selection and data-augmentation (mirroring)
+* features2bvh: converting features back to bvh format
 
 
 ### Read BVH Files
@@ -106,19 +113,6 @@ piped_data = data_pipe.fit_transform(train_X)
 mp = MocapParameterizer('positions')
 
 positions = mp.fit_transform([parsed_data])
-```
-
-### Convert to joint angle features and back
-See the demo notebooks bvh2features and features2bvh For a complete pre-processing pipeline including down-sampling, root-centric transformation, joint-selection and data-augmentation (mirroring).
-
-
-```python
-from pymo.parsers import BVHParser
-import pymo.viz_tools
-
-parser = BVHParser()
-
-parsed_data = parser.parse('data/AV_8Walk_Meredith_HVHA_Rep1.bvh')
 ```
 
 ### Visualize a single 2D Frame
