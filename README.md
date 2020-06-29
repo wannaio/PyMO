@@ -108,6 +108,19 @@ mp = MocapParameterizer('positions')
 positions = mp.fit_transform([parsed_data])
 ```
 
+### Convert to joint angle features and back
+See the demo notebooks bvh2features and features2bvh For a complete pre-processing pipeline including down-sampling, root-centric transformation, joint-selection and data-augmentation (mirroring).
+
+
+```python
+from pymo.parsers import BVHParser
+import pymo.viz_tools
+
+parser = BVHParser()
+
+parsed_data = parser.parse('data/AV_8Walk_Meredith_HVHA_Rep1.bvh')
+```
+
 ### Visualize a single 2D Frame
 
 ```python
@@ -151,6 +164,7 @@ For any questions, feedback, and bug reports, please use the [Github Issues](htt
 ## Credits
 Created by [Omid Alemi](https://omid.al/projects/)
 
+Modified by Simon Alexanderson
 
 ## License
 This code is available under the [MIT license](http://opensource.org/licenses/MIT).
