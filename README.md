@@ -30,6 +30,15 @@ A library for using motion capture data for machine learning.
 * Annotations
     * Foot/ground contact detector
 
+### Dependencies
+numpy
+scipy
+joblib
+scikit-learn
+pandas
+jupyter
+matplotlib
+
 ### Demos
 See the demo notebooks for processing and visualization examples:
 
