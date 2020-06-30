@@ -9,7 +9,6 @@ Modified by Simon Alexanderson, 2020-06-24
 import copy
 import pandas as pd
 import numpy as np
-import transforms3d as t3d
 import scipy.ndimage.filters as filters
 from scipy.spatial.transform import Rotation as R
 
