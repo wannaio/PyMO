@@ -1,4 +1,10 @@
 # PyMO
+
+
+*This forked version is for [GENEA Challenge 2022](https://genea-workshop.github.io/2022/challenge/) dataset. Code is modified to be compatible with the joint names in the dataset.*
+
+
+
 A library for using motion capture data for machine learning.
 
 **This library is currently highly experimental and everything is subject to change :)**
