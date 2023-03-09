@@ -5,7 +5,7 @@ class BVHWriter():
     def __init__(self):
         pass
     
-    def write(self, X, ofile, framerate=-1):
+    def write(self, X, ofile, framerate=-1, start=0, stop=-1):
         
         # Writing the skeleton info
         ofile.write('HIERARCHY\n')
@@ -13,9 +13,15 @@ class BVHWriter():
         self.motions_ = []
         self._printJoint(X, X.root_name, 0, ofile)
 
+        if stop > 0:
+            nframes = stop-start
+        else:
+            nframes = X.values.shape[0]
+            stop = X.values.shape[0]
+
         # Writing the motion header
         ofile.write('MOTION\n')
-        ofile.write('Frames: %d\n'%X.values.shape[0])
+        ofile.write('Frames: %d\n'%nframes)
         
         if framerate > 0:
             ofile.write('Frame Time: %f\n'%float(1.0/framerate))
@@ -24,7 +30,7 @@ class BVHWriter():
 
         # Writing the data
         self.motions_ = np.asarray(self.motions_).T
-        lines = [" ".join(item) for item in self.motions_.astype(str)]
+        lines = [" ".join(item) for item in self.motions_[start:stop].astype(str)]
         ofile.write("".join("%s\n"%l for l in lines))
 
     def _printJoint(self, X, joint, tab, ofile):

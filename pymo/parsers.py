@@ -9,7 +9,9 @@ Based on: https://gist.github.com/johnfredcee/2007503
 '''
 import re
 import numpy as np
-from pymo.data import Joint, MocapData
+
+# from pymo.data import Joint, MocapData
+from dm.utils.PyMO.pymo.data import Joint, MocapData
 
 class BVHScanner():
     '''
@@ -251,7 +253,9 @@ class BVHParser():
         for i in range(stop):
             channel_values = []
             for channel in self._motion_channels:
-                channel_values.append((channel[0], channel[1], float(bvh[self.current_token][1])))
+                try:
+                    channel_values.append((channel[0], channel[1], float(bvh[self.current_token][1])))
+                except Exception as e: print(e)
                 self.current_token = self.current_token + 1
 
             if i>=start:
