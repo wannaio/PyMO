@@ -77,12 +77,15 @@ class BVHParser():
 
     def parse(self, filename, start=0, stop=-1):
         self.reset()
-
+        num_lines = sum(1 for line in open(filename))
+        self.frame_count = num_lines - 431
+        # raise Exception(num_lines)
         with open(filename, 'r') as bvh_file:
             raw_contents = bvh_file.read()
         tokens, remainder = self.scanner.scan(raw_contents)
         self._parse_hierarchy(tokens)
         self.current_token = self.current_token + 1
+        # print("info: ",len(tokens), start, stop) # 1724769 0 -1, 1871145 0 -1
         self._parse_motion(tokens, start, stop)
         
         self.data.skeleton = self._skeleton
@@ -101,7 +104,7 @@ class BVHParser():
         frames = [f[1] for f in self._motions]
         channels = np.asarray([[channel[2] for channel in frame] for frame in frames])
         column_names = ['%s_%s'%(c[0], c[1]) for c in self._motion_channels]
-
+        # print(channels.shape, len(time_index), len(column_names)) # (7560, 228) 7560 228
         return pd.DataFrame(data=channels, index=time_index, columns=column_names)
 
 
@@ -222,12 +225,17 @@ class BVHParser():
         if bvh[self.current_token][1] != 'MOTION':
             print('No motion section')
             return None
+        # print(f"curren_token: {self.current_token}")
         self.current_token = self.current_token + 1
+        # print(f"new current_token: {self.current_token}, bvh[self.current_token]: {bvh[self.current_token]}")
         if bvh[self.current_token][1] != 'Frames':
             return None
         self.current_token = self.current_token + 1
-        frame_count = int(bvh[self.current_token][1])
         
+        # frame_count = int(bvh[self.current_token][1]) # miswritten bvh files, manual get frame count
+        frame_count = self.frame_count
+        
+        # print(frame_count, start, stop) # 7560 0 -1, 8400 0 -1 
         if stop<0 or stop>frame_count:
             stop = frame_count
             
@@ -242,20 +250,26 @@ class BVHParser():
             return None
         self.current_token = self.current_token + 1
         frame_rate = float(bvh[self.current_token][1])
-
+        # print(frame_rate) # .008333
         self.framerate = frame_rate
        
         self.current_token = self.current_token + 1
        
         frame_time = 0.0
         self._motions = [()] * (stop-start)
+        # print(f"stop-start: {stop-start}") # 7560 8400
         idx=0
+        # print(len(self._motion_channels)) # 228 228
+        # print(len(self._motion_channels[0]))  # < class 'tuple'> 2
+        # print(f"len of bvh: {len(bvh)}") # 1724769  1871145
+        # print(bvh[0], type(bvh[0]), self.current_token) #  'IDENT', 'HIERARCHY') <class 'tuple'> 1089
+        # print(bvh[1089][1], type(bvh[1089])) # .256446e+00 <class 'tuple'>
+        
         for i in range(stop):
             channel_values = []
             for channel in self._motion_channels:
-                try:
-                    channel_values.append((channel[0], channel[1], float(bvh[self.current_token][1])))
-                except Exception as e: print(e)
+                # print(self.current_token)
+                channel_values.append((channel[0], channel[1], float(bvh[self.current_token][1])))
                 self.current_token = self.current_token + 1
 
             if i>=start:
