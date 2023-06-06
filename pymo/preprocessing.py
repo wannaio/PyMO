@@ -713,7 +713,7 @@ class Slicer(BaseEstimator, TransformerMixin):
         return Q
 
 class RootTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, method, position_smoothing=0, rotation_smoothing=0, pymo_verbose=False):
+    def __init__(self, method, position_smoothing=0, rotation_smoothing=0, pymo_verbose=False, keep_rootTrans=False, keep_forwardY=False):
         """
         Accepted methods:
             abdolute_translation_deltas
@@ -722,6 +722,8 @@ class RootTransformer(BaseEstimator, TransformerMixin):
         self.method = method
         self.position_smoothing=position_smoothing
         self.rotation_smoothing=rotation_smoothing
+        self.keep_rootTrans = keep_rootTrans
+        self.keep_forwardY = keep_forwardY
         self.pymo_verbose = pymo_verbose
     
     def fit(self, X, y=None):
@@ -805,7 +807,8 @@ class RootTransformer(BaseEstimator, TransformerMixin):
                 velocity = np.vstack((velocity[0,:], velocity))
 
                 """ Remove Root Translation """
-                positions = positions-reference
+                if not self.keep_rootTrans:
+                    positions = positions-reference
 
                 """ Get Forward Direction along the x-z plane, assuming character is facig z-forward """
                 #forward = [Rotation(f, 'euler', from_deg=True, order=rot_order).rotmat[:,2] for f in rotations] # get the z-axis of the rotation matrix, assuming character is facig z-forward
@@ -865,6 +868,106 @@ class RootTransformer(BaseEstimator, TransformerMixin):
 
                 new_track.values = new_df
 
+            elif self.method == 'pos_rot_deltas_v1':
+                new_track = track.clone()
+
+                # Absolute columns
+                xp_col = '%s_Xposition'%track.root_name
+                yp_col = '%s_Yposition'%track.root_name
+                zp_col = '%s_Zposition'%track.root_name
+                
+                #rot_order = track.skeleton[track.root_name]['order']
+                #%(joint, rot_order[0])
+
+                rot_order = track.skeleton[track.root_name]['order']
+                r1_col = '%s_%srotation'%(track.root_name, rot_order[0])
+                r2_col = '%s_%srotation'%(track.root_name, rot_order[1])
+                r3_col = '%s_%srotation'%(track.root_name, rot_order[2])
+
+                # Delta columns
+                dxp_col = '%s_dXposition'%track.root_name
+                dzp_col = '%s_dZposition'%track.root_name
+
+                dxr_col = '%s_dXrotation'%track.root_name
+                dyr_col = '%s_dYrotation'%track.root_name
+                dzr_col = '%s_dZrotation'%track.root_name
+
+                positions = np.transpose(np.array([track.values[xp_col], track.values[yp_col], track.values[zp_col]]))
+                rotations = np.pi/180.0*np.transpose(np.array([track.values[r1_col], track.values[r2_col], track.values[r3_col]]))
+                
+                """ Get Trajectory and smooth it"""                
+                trajectory_filterwidth = self.position_smoothing
+                reference = positions.copy()*np.array([1,0,1])
+                if trajectory_filterwidth>0:
+                    reference = filters.gaussian_filter1d(reference, trajectory_filterwidth, axis=0, mode='nearest')
+                
+                """ Get Root Velocity """
+                velocity = np.diff(reference, axis=0)                
+                velocity = np.vstack((velocity[0,:], velocity))
+
+                """ Remove Root Translation """
+                if not self.keep_rootTrans:
+                    positions = positions-reference
+
+                """ Get Forward Direction along the x-z plane, assuming character is facig z-forward """
+                #forward = [Rotation(f, 'euler', from_deg=True, order=rot_order).rotmat[:,2] for f in rotations] # get the z-axis of the rotation matrix, assuming character is facig z-forward
+                #print("order:" + rot_order.lower())
+                quats = Quaternions.from_euler(rotations, order=rot_order.lower(), world=False)
+                forward = quats*np.array([[0,0,1]]) # KC: multiply quaternion by 0,0,1 vector to get the z-axis of the rotation matrix, assuming character is facig z-forward
+                if not self.keep_forwardY:
+                    forward[:,1] = 0 # modified by KC: forward direction is always on the x-z plane by setting the y-axis to 0. Here the character will not bend forward or backward but only rotate left or right 
+
+                """ Smooth Forward Direction """                
+                direction_filterwidth = self.rotation_smoothing
+                if direction_filterwidth>0:
+                    forward = filters.gaussian_filter1d(forward, direction_filterwidth, axis=0, mode='nearest')    
+
+                forward = forward / np.sqrt((forward**2).sum(axis=-1))[...,np.newaxis] # KC: normalize the forward direction vector?
+
+                """ Remove Y Rotation """
+                target = np.array([[0,0,1]]).repeat(len(forward), axis=0)
+                rotation = Quaternions.between(target, forward)[:,np.newaxis]    
+                # positions = (-rotation[:,0]) * positions # modified by KC
+                # new_rotations = (-rotation[:,0]) * quats # modified by KC
+                new_rotations = quats # modified by KC
+
+                """ Get Root Rotation """
+                #print(rotation[:,0])
+                velocity = (-rotation[:,0]) * velocity
+                rvelocity = Pivots.from_quaternions(rotation[1:] * -rotation[:-1]).ps
+                rvelocity = np.vstack((rvelocity[0], rvelocity))
+
+                eulers = np.array([t3d.euler.quat2euler(q, axes=('s'+rot_order.lower()[::-1]))[::-1] for q in new_rotations])*180.0/np.pi
+                
+                new_df = track.values.copy()
+
+                root_pos_x = pd.Series(data=positions[:,0], index=new_df.index)
+                root_pos_y = pd.Series(data=positions[:,1], index=new_df.index)
+                root_pos_z = pd.Series(data=positions[:,2], index=new_df.index)
+                root_pos_x_diff = pd.Series(data=velocity[:,0], index=new_df.index)
+                root_pos_z_diff = pd.Series(data=velocity[:,2], index=new_df.index)
+
+                root_rot_1 = pd.Series(data=eulers[:,0], index=new_df.index)
+                root_rot_2 = pd.Series(data=eulers[:,1], index=new_df.index)
+                root_rot_3 = pd.Series(data=eulers[:,2], index=new_df.index)
+                root_rot_y_diff = pd.Series(data=rvelocity[:,0], index=new_df.index)
+                
+                #new_df.drop([xr_col, yr_col, zr_col, xp_col, zp_col], axis=1, inplace=True)
+
+                new_df[xp_col] = root_pos_x
+                new_df[yp_col] = root_pos_y
+                new_df[zp_col] = root_pos_z
+                new_df[dxp_col] = root_pos_x_diff
+                new_df[dzp_col] = root_pos_z_diff
+
+                new_df[r1_col] = root_rot_1
+                new_df[r2_col] = root_rot_2
+                new_df[r3_col] = root_rot_3
+                #new_df[dxr_col] = root_rot_x_diff
+                new_df[dyr_col] = root_rot_y_diff
+                #new_df[dzr_col] = root_rot_z_diff
+
+                new_track.values = new_df
 
             elif self.method == 'hip_centric':
                 new_track = track.clone()
@@ -946,7 +1049,7 @@ class RootTransformer(BaseEstimator, TransformerMixin):
                 new_track.values = new_df
             # end of abdolute_translation_deltas
             
-            elif self.method == 'pos_rot_deltas':
+            elif self.method in ['pos_rot_deltas', 'pos_rot_deltas_v1']:
                 # Absolute columns
                 rot_order = track.skeleton[track.root_name]['order']
                 xp_col = '%s_Xposition'%track.root_name
