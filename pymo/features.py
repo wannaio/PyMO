@@ -9,16 +9,20 @@ import pandas as pd
 import peakutils
 import matplotlib.pyplot as plt
 
-def get_foot_contact_idxs(signal, t=0.02, min_dist=120):
-    up_idxs = peakutils.indexes(signal, thres=t/max(signal), min_dist=min_dist)
-    down_idxs = peakutils.indexes(-signal, thres=t/min(signal), min_dist=min_dist)
+
+def get_foot_contact_idxs(signal, t=0.02, min_dist=120, min_range=1):
+    if (max(signal) - min(signal)) < min_range:
+        return [[], []]
+    
+    up_idxs = peakutils.indexes(signal, thres=t, min_dist=min_dist, thres_abs=False)
+    down_idxs = peakutils.indexes(-signal, thres=t, min_dist=min_dist, thres_abs=False)
 
     return [up_idxs, down_idxs]
 
 
-def create_foot_contact_signal(mocap_track, col_name, start=1, t=0.02, min_dist=120):
+def create_foot_contact_signal(mocap_track, col_name, start=1, t=0.02, min_dist=120, min_range=1):
     signal = mocap_track.values[col_name].values
-    idxs = get_foot_contact_idxs(signal, t, min_dist)
+    idxs = get_foot_contact_idxs(signal, t, min_dist, min_range)
 
     step_signal = []
 
